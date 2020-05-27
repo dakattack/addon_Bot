@@ -1,4 +1,3 @@
-# bot.py
 import os
 import json
 import discord
@@ -9,18 +8,20 @@ from dotenv import load_dotenv
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
-class MyClient(discord.Client):
-	DBM_URL = "https://addons-ecs.forgesvc.net/api/v2/addon/3358"
-	with urllib.request.urlopen(DBM_URL) as url:
-		DBM_JSON = url.read()
-		DBM_Parse = json.loads(DBM_JSON)
-	print(DBM_Parse)
+class addon_Bot(discord.Client):
 	async def on_ready(self):
+		DBM_URL = "https://addons-ecs.forgesvc.net/api/v2/addon/3358"
+		with urllib.request.urlopen(DBM_URL) as url:
+			DBM_JSON = url.read()
+			DBM_Parse = json.loads(DBM_JSON)
+		latestClassic = 0
+		while DBM_Parse["latestFiles"][latestClassic]["gameVersionFlavor"] != "wow_classic":
+			latestClassic = latestClassic + 1
 		print('Logged on as {0}!'.format(self.user))
+		message = "A new version of DBM is available! Version: " + DBM_Parse["latestFiles"][latestClassic]["displayName"] + " Be sure to download it here before raid: " +  DBM_Parse["latestFiles"][latestClassic]["downloadUrl"]
+		channel = client.get_channel(715301042530549813)
+		await channel.send(message)
 
-	async def on_message(self, message):
-		print('Message from {0.author}: {0.content}'.format(message))
-
-client = MyClient()
+client = addon_Bot()
 
 client.run(TOKEN)
