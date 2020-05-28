@@ -61,6 +61,8 @@ async def on_message(message):
 		else:
 			await channel.send(failureMessage)
 	if message.content.startswith('!removeaddon'):
+		conn = sqlite3.connect('addons.db')
+		c = conn.cursor()
 		message = message.content
 		message = message.split()
 		id = message[1]
@@ -70,7 +72,7 @@ async def on_message(message):
 			conn.commit()
 			c.close()
 			conn.close()
-			removemessage = "Addon was removed from the tracker"
+			removeMessage = "Addon was removed from the tracker"
 			await channel.send(removeMessage)
 		else:
 			await channel.send(failureMessage)
