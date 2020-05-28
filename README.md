@@ -1,1 +1,1 @@
-# addon_Bot
+This is a discord bot I wrote to send a message every time there is an update to a WoW addon. Will be useful for guilds who require certain addons to raid. Currently in alpha, but it is mostly working.
