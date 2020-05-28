@@ -22,6 +22,7 @@ async def on_ready():
 @client.event
 async def on_message(message):
 	global channel
+	failureMessage = "Please enter a valid addon ID"
 	channel = client.get_channel(715301042530549813)
 	if message.author == client.user:
        		return
@@ -31,31 +32,49 @@ async def on_message(message):
 		message = message.content
 		message = message.split()
 		id = message[1]
-		command = "SELECT * FROM addons WHERE id = " + str(id)
-		c.execute(command)
-		entry = c.fetchone()
-		if entry is None:
-			apiRequest = "https://addons-ecs.forgesvc.net/api/v2/addon/" + id
-			with urllib.request.urlopen(apiRequest) as url:
-				jsonFile = url.read()
-				addonDict = json.loads(jsonFile)
-			latestClassic = 0
-			while addonDict["latestFiles"][latestClassic]["gameVersionFlavor"] != "wow_classic":
-				latestClassic = latestClassic + 1
-			name = addonDict["name"]
-			latestVersion = addonDict["latestFiles"][latestClassic]["id"]
-			command = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ')'
+		if intCheck(id):
+			command = "SELECT * FROM addons WHERE id = " + str(id)
+			c.execute(command)
+			entry = c.fetchone()
+			if entry is None:
+				apiRequest = "https://addons-ecs.forgesvc.net/api/v2/addon/" + id
+				with urllib.request.urlopen(apiRequest) as url:
+					jsonFile = url.read()
+					addonDict = json.loads(jsonFile)
+				latestClassic = 0
+				while addonDict["latestFiles"][latestClassic]["gameVersionFlavor"] != "wow_classic":
+					latestClassic = latestClassic + 1
+				name = addonDict["name"]
+				latestVersion = addonDict["latestFiles"][latestClassic]["id"]
+				command = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ')'
+				c.execute(command)
+				conn.commit()
+				c.close()
+				conn.close()
+				successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons!"
+				await channel.send(successMessage)
+			else:
+				alreadyExists = "Addon is already being tracked."
+				c.close()
+				conn.close()
+				await channel.send(alreadyExists)
+		else:
+			await channel.send(failureMessage)
+	if message.content.startswith('!removeaddon'):
+		message = message.content
+		message = message.split()
+		id = message[1]
+		if intCheck(id):
+			command = "DELETE FROM addons WHERE id = " + str(id)
 			c.execute(command)
 			conn.commit()
 			c.close()
 			conn.close()
-			successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons!"
-			await channel.send(successMessage)
+			removemessage = "Addon was removed from the tracker"
+			await channel.send(removeMessage)
 		else:
-			failureMessage = "Addon is already being tracked."
-			c.close()
-			conn.close()
 			await channel.send(failureMessage)
+			
 @tasks.loop(hours=2)
 async def updateAlert():
 	await client.wait_until_ready()
@@ -84,6 +103,13 @@ async def updateAlert():
 
 	c.close()
 	conn.close()
+	
+def intCheck(input):
+	try:
+		int(input)
+		return True
+	except ValueError:
+		return False
 
 updateAlert.start()
 client.run(TOKEN)
