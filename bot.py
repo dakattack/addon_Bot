@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-CHANNEL = os.getenv('DISCORD_CHANNEL')
 
 class addon_Bot(discord.Client):
 	async def on_ready(self):
@@ -19,8 +18,8 @@ class addon_Bot(discord.Client):
 		while DBM_Parse["latestFiles"][latestClassic]["gameVersionFlavor"] != "wow_classic":
 			latestClassic = latestClassic + 1
 		print('Logged on as {0}!'.format(self.user))
+		channel = client.get_channel(715301042530549813)
 		message = "A new version of DBM is available! Version: " + DBM_Parse["latestFiles"][latestClassic]["displayName"] + " Be sure to download it here before raid: " +  DBM_Parse["latestFiles"][latestClassic]["downloadUrl"]
-		channel = client.get_channel(CHANNEL)
 		await channel.send(message)
 
 client = addon_Bot()
