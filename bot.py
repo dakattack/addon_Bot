@@ -43,15 +43,20 @@ async def on_message(message):
 		command = messageContentArray[1]
 
 		if command == LIST:
-			await channel.send("Addons currently being tracked:")
+			addonList = "Addons currently being tracked:\n"
 			connectDB()
 			dbQuery = "SELECT * FROM addons"
 			c.execute(dbQuery)
 			entry = c.fetchone()
 			while entry is not None:
-				addonInfo = str(entry[1]) + " Project ID: " + str(entry[0]) + " Role: " + str(entry[3])
-				await channel.send(addonInfo)
+				addonName = str(entry[1])
+				addonID = str(entry[0])
+				addonRole = str(entry[3])
+				addonNameTrunc = (addonName[:37] + '...') if len(addonName) > 37 else addonName.ljust(40)
+				addonInfo = "\t" + addonNameTrunc + "Project ID: " + addonID + " Role: " + addonRole + "\n"
+				addonList = addonList + addonInfo
 				entry = c.fetchone()
+			await channel.send(addonList)
 
 		elif command == HELP:
 			await channel.send("\
