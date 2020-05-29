@@ -30,9 +30,9 @@ async def on_message(message):
 	if message.content.startswith('!addon '):
 		conn = sqlite3.connect('addons.db')
 		c = conn.cursor()
-		message = message.content
-		message = message.split()
-		id = message[1]
+		messageContent = message.content
+		messageContentArray = messageContent.split()
+		id = messageContentArray[1]
 		if intCheck(id):
 			command = "SELECT * FROM addons WHERE id = " + str(id)
 			c.execute(command)
@@ -48,15 +48,21 @@ async def on_message(message):
 				name = addonDict["name"]
 				latestVersion = addonDict["latestFiles"][latestClassic]["id"]
 				try:
-					role = message[2]
+					roleName = messageContentArray[2]
 				except IndexError:
-					role = "here"
-				command = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ', "' + str(role) + '")'
+					roleName = "here"
+				command = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ', "' + str(roleName) + '")'
 				c.execute(command)
 				conn.commit()
 				c.close()
 				conn.close()
-				successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons for @" + role
+				roleList = message.guild.roles
+				for roleTemp in roleList:
+					if roleTemp.name == roleName:
+						role = roleTemp
+						successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons for " + role.mention
+					else:
+						successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons for @here"
 				await channel.send(successMessage)
 			else:
 				alreadyExists = entry[1] + " is already being tracked."
@@ -68,9 +74,9 @@ async def on_message(message):
 	elif message.content.startswith('!addonremove '):
 		conn = sqlite3.connect('addons.db')
 		c = conn.cursor()
-		message = message.content
-		message = message.split()
-		id = message[1]
+		messageContent = message.content
+		messageContentArray = messageContent.split()
+		id = messageContentArray[1]
 		if intCheck(id):
 			command = "SELECT * FROM addons WHERE id = " + str(id)
 			c.execute(command)
