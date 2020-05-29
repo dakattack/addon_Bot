@@ -107,17 +107,17 @@ async def on_message(message):
 					await channel.send(addonInfo)
 					entry = c.fetchone()
 
+			elif command == HELP:
+				await channel.send("List of commands:")
+				await channel.send("!addon add [id] [role]: Adds an addon with Project ID [id] to the tracker. When updates are available, it will tag @[role]. Default is 'here'")
+				await channel.send("!addon remove [id]: Removes an addon from the tracker with Project ID [id]")    
+				await channel.send("!addon list: Shows all addons currently being tracked.")
+
 			else:
 				await channel.send(failureMessage)
 
 		else:
 			await channel.send(failureMessage)
-
-	elif feature == HELP:
-		await channel.send("List of commands:")
-		await channel.send("!addon add [id] [role]: Adds an addon with Project ID [id] to the tracker. When updates are available, it will tag @[role]. Default is 'here'")
-		await channel.send("!addon remove [id]: Removes an addon from the tracker with Project ID [id]")    
-		await channel.send("!addon list: Shows all addons currently being tracked.")
 
 @tasks.loop(hours=2)
 async def updateAlert():
