@@ -138,8 +138,8 @@ async def updateAlert():
 		while addonDict["latestFiles"][latestClassic]["gameVersionFlavor"] != "wow_classic":
 			latestClassic = latestClassic + 1
 		if addonDict["latestFiles"][latestClassic]["id"] != row[2]:
-			command = "UPDATE addons SET latestVersion = " + str(addonDict["latestFiles"][latestClassic]["id"]) +" WHERE id = " + str(row[0])
-			c.execute(command)
+			dbQuery = "UPDATE addons SET latestVersion = " + str(addonDict["latestFiles"][latestClassic]["id"]) +" WHERE id = " + str(row[0])
+			c.execute(dbQuery)
 			conn.commit()
 			updateMessage = "A new version of " + addonDict["name"] + " is available! Version: " + addonDict["latestFiles"][latestClassic]["displayName"] + " Be sure to download it here before raid: " +  addonDict["latestFiles"][latestClassic]["downloadUrl"]
 			await channel.send(updateMessage)
