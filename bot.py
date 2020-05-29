@@ -23,6 +23,7 @@ async def on_ready():
 async def on_message(message):
 	global channel
 	failureMessage = "Please enter a valid addon ID"
+	notFoundMessage = "Addon with that ID was not found."
 	channel = client.get_channel(715301042530549813)
 	if message.author == client.user:
        		return
@@ -46,37 +47,50 @@ async def on_message(message):
 					latestClassic = latestClassic + 1
 				name = addonDict["name"]
 				latestVersion = addonDict["latestFiles"][latestClassic]["id"]
-				command = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ')'
+				try:
+					role = message[2]
+				except IndexError:
+					role = "here"
+				command = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ', ' + role + ')'
 				c.execute(command)
 				conn.commit()
 				c.close()
 				conn.close()
-				successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons!"
+				successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons for @" + role
 				await channel.send(successMessage)
 			else:
-				alreadyExists = "Addon is already being tracked."
+				alreadyExists = entry[1] + " is already being tracked."
 				c.close()
 				conn.close()
 				await channel.send(alreadyExists)
 		else:
 			await channel.send(failureMessage)
-	if message.content.startswith('!removeaddon'):
+	if message.content.startswith('!addonremove'):
 		conn = sqlite3.connect('addons.db')
 		c = conn.cursor()
 		message = message.content
 		message = message.split()
 		id = message[1]
 		if intCheck(id):
-			command = "DELETE FROM addons WHERE id = " + str(id)
+			command = "SELECT FROM addons WHERE id = " + str(id)
 			c.execute(command)
-			conn.commit()
+			entry = c.fetchone()
+			if entry is not None:
+				removeMessage = entry[1] + " was removed from the tracker"
+				command = "DELETE FROM addons WHERE id = " + str(id)
+				c.execute(command)
+				conn.commit()
+			else:
+				await channel.send(notFoundMessage)
 			c.close()
 			conn.close()
-			removeMessage = "Addon was removed from the tracker"
 			await channel.send(removeMessage)
 		else:
 			await channel.send(failureMessage)
-			
+	if message.content.startswith('!addonhelp'):
+		await channel.send("List of commands: ")
+		await channel.send("!addon [id] [role] Adds an addon with Project ID [id] to the tracker. When updates are available, it will tag @[role]. Default is @here")
+		await channel.send("!addonremove [id] Removes an addon from the tracker with Project ID [id]")	
 @tasks.loop(hours=2)
 async def updateAlert():
 	await client.wait_until_ready()
