@@ -39,85 +39,93 @@ async def on_message(message):
 
 	if feature == ADDON:
 		command = messageContentArray[1]
-		id = messageContentArray[2]
 
-		if intCheck(id):
-			if command == ADD:
-				connectDB()
-				dbQuery = "SELECT * FROM addons WHERE id = " + str(id)
-				c.execute(dbQuery)
-				entry = c.fetchone()
-				if entry is None:
-					apiRequest = "https://addons-ecs.forgesvc.net/api/v2/addon/" + id
-					with urllib.request.urlopen(apiRequest) as url:
-						jsonFile = url.read()
-						addonDict = json.loads(jsonFile)
-					latestClassic = 0
-					while addonDict["latestFiles"][latestClassic]["gameVersionFlavor"] != "wow_classic":
-						latestClassic = latestClassic + 1
-					name = addonDict["name"]
-					latestVersion = addonDict["latestFiles"][latestClassic]["id"]
-					try:
-						roleName = messageContentArray[3]
-					except IndexError:
-						roleName = "here"
-					dbQuery = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ', "' + str(roleName) + '")'
-					c.execute(dbQuery)
-					conn.commit()
-					c.close()
-					conn.close()
-					roleList = message.guild.roles
-					for roleTemp in roleList:
-						if roleTemp.name == roleName:
-							role = roleTemp
-							successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons for " + role.mention
-						else:
-							successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons for @here"
-					await channel.send(successMessage)
-				else:
-					alreadyExists = entry[1] + " is already being tracked."
-					c.close()
-					conn.close()
-					await channel.send(alreadyExists)
 
-			elif command == REMOVE:
-				connectDB()
-				dbQuery = "SELECT * FROM addons WHERE id = " + str(id)
-				c.execute(dbQuery)
+		if command == LIST:
+			await channel.send("Addons currently being tracked:")
+			connectDB()
+			dbQuery = "SELECT * FROM addons"
+			c.execute(dbQuery)
+			entry = c.fetchone()
+			while entry is not None:
+				addonInfo = str(entry[1]) + " Project ID: " + str(entry[0]) + " Role: " + str(entry[3])
+				await channel.send(addonInfo)
 				entry = c.fetchone()
-				if entry is not None:
-					removeMessage = entry[1] + " was removed from the tracker"
-					dbQuery = "DELETE FROM addons WHERE id = " + str(id)
-					c.execute(dbQuery)
-					conn.commit()
-				else:
-					await channel.send(notFoundMessage)
+
+		elif command == HELP:
+			await channel.send("List of commands:")
+			await channel.send("!addon add [id] [role]: Adds an addon with Project ID [id] to the tracker. When updates are available, it will tag @[role]. Default is 'here'")
+			await channel.send("!addon help: displays the list of commands")
+			await channel.send("!addon list: Shows all addons currently being tracked.")
+			await channel.send("!addon remove [id]: Removes an addon from the tracker with Project ID [id]")  
+
+		elif command == ADD:
+			if(!intCheck(messageContentArray[2])):
+				await channel.send(failureMessage)
+				return
+			id = messageContentArray[2]
+			connectDB()
+			dbQuery = "SELECT * FROM addons WHERE id = " + str(id)
+			c.execute(dbQuery)
+			entry = c.fetchone()
+			if entry is None:
+				apiRequest = "https://addons-ecs.forgesvc.net/api/v2/addon/" + id
+				with urllib.request.urlopen(apiRequest) as url:
+					jsonFile = url.read()
+					addonDict = json.loads(jsonFile)
+				latestClassic = 0
+				while addonDict["latestFiles"][latestClassic]["gameVersionFlavor"] != "wow_classic":
+					latestClassic = latestClassic + 1
+				name = addonDict["name"]
+				latestVersion = addonDict["latestFiles"][latestClassic]["id"]
+				try:
+					roleName = messageContentArray[3]
+				except IndexError:
+					roleName = "here"
+				dbQuery = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ', "' + str(roleName) + '")'
+				c.execute(dbQuery)
+				conn.commit()
 				c.close()
 				conn.close()
-				await channel.send(removeMessage)
-
-			elif command == LIST:
-				await channel.send("Addons currently being tracked:")
-				connectDB()
-				dbQuery = "SELECT * FROM addons"
-				c.execute(dbQuery)
-				entry = c.fetchone()
-				while entry is not None:
-					addonInfo = str(entry[1]) + " Project ID: " + str(entry[0]) + " Role: " + str(entry[3])
-					await channel.send(addonInfo)
-					entry = c.fetchone()
-
-			elif command == HELP:
-				await channel.send("List of commands:")
-				await channel.send("!addon add [id] [role]: Adds an addon with Project ID [id] to the tracker. When updates are available, it will tag @[role]. Default is 'here'")
-				await channel.send("!addon remove [id]: Removes an addon from the tracker with Project ID [id]")    
-				await channel.send("!addon list: Shows all addons currently being tracked.")
-
+				roleList = message.guild.roles
+				for roleTemp in roleList:
+					if roleTemp.name == roleName:
+						role = roleTemp
+						successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons for " + role.mention
+					else:
+						successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons for @here"
+				await channel.send(successMessage)
 			else:
+				alreadyExists = entry[1] + " is already being tracked."
+				c.close()
+				conn.close()
+				await channel.send(alreadyExists)
+
+		elif command == REMOVE:
+			if(!intCheck(messageContentArray[2])):
 				await channel.send(failureMessage)
+				return
+			id = messageContentArray[2]
+			connectDB()
+			dbQuery = "SELECT * FROM addons WHERE id = " + str(id)
+			c.execute(dbQuery)
+			entry = c.fetchone()
+			if entry is not None:
+				removeMessage = entry[1] + " was removed from the tracker"
+				dbQuery = "DELETE FROM addons WHERE id = " + str(id)
+				c.execute(dbQuery)
+				conn.commit()
+			else:
+				await channel.send(notFoundMessage)
+			c.close()
+			conn.close()
+			await channel.send(removeMessage)  
 
 		else:
 			await channel.send(failureMessage)
+
+	else:
+		await channel.send(failureMessage)
 
 @tasks.loop(hours=2)
 async def updateAlert():
