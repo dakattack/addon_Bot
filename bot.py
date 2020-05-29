@@ -27,7 +27,7 @@ async def on_message(message):
 	channel = client.get_channel(715301042530549813)
 	if message.author == client.user:
        		return
-	if message.content.startswith('!addon'):
+	if message.content.startswith('!addon '):
 		conn = sqlite3.connect('addons.db')
 		c = conn.cursor()
 		message = message.content
@@ -51,7 +51,7 @@ async def on_message(message):
 					role = message[2]
 				except IndexError:
 					role = "here"
-				command = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ', ' + role + ')'
+				command = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ', "' + str(role) + '")'
 				c.execute(command)
 				conn.commit()
 				c.close()
@@ -65,14 +65,14 @@ async def on_message(message):
 				await channel.send(alreadyExists)
 		else:
 			await channel.send(failureMessage)
-	if message.content.startswith('!addonremove'):
+	elif message.content.startswith('!addonremove '):
 		conn = sqlite3.connect('addons.db')
 		c = conn.cursor()
 		message = message.content
 		message = message.split()
 		id = message[1]
 		if intCheck(id):
-			command = "SELECT FROM addons WHERE id = " + str(id)
+			command = "SELECT * FROM addons WHERE id = " + str(id)
 			c.execute(command)
 			entry = c.fetchone()
 			if entry is not None:
@@ -87,10 +87,22 @@ async def on_message(message):
 			await channel.send(removeMessage)
 		else:
 			await channel.send(failureMessage)
-	if message.content.startswith('!addonhelp'):
-		await channel.send("List of commands: ")
-		await channel.send("!addon [id] [role] Adds an addon with Project ID [id] to the tracker. When updates are available, it will tag @[role]. Default is @here")
+	elif message.content.startswith('!addonlist'):
+		await channel.send("Addons currently being tracked:")
+		conn = sqlite3.connect('addons.db')
+		c = conn.cursor()
+		command = "SELECT * FROM addons"
+		c.execute(command)
+		entry = c.fetchone()
+		while entry is not None:
+			addonInfo = str(entry[1]) + " Project ID: " + str(entry[0]) + " Role: " + str(entry[3])
+			await channel.send(addonInfo)
+			entry = c.fetchone()
+	elif message.content.startswith('!addonhelp'):
+		await channel.send("List of commands:")
+		await channel.send("!addon [id] [role] Adds an addon with Project ID [id] to the tracker. When updates are available, it will tag @[role]. Default is 'here'")
 		await channel.send("!addonremove [id] Removes an addon from the tracker with Project ID [id]")	
+		await channel.send("!addonlist Shows all addons currently being tracked.")
 @tasks.loop(hours=2)
 async def updateAlert():
 	await client.wait_until_ready()
@@ -119,7 +131,7 @@ async def updateAlert():
 
 	c.close()
 	conn.close()
-	
+
 def intCheck(input):
 	try:
 		int(input)
