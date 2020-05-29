@@ -34,8 +34,8 @@ async def on_message(message):
 	if message.author == client.user:
        		return
 	
-    messageContentArray = messageContentSplit(message)
-    feature = messageContentArray[0]
+	messageContentArray = messageContentSplit(message)
+	feature = messageContentArray[0]
 
 	if feature == ADDON:
 		command = messageContentArray[1]
