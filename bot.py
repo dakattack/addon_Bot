@@ -22,24 +22,25 @@ async def on_ready():
 @client.event
 async def on_message(message):
 	global channel
+	global conn
+	global c
 	failureMessage = "Please enter a valid addon ID"
 	notFoundMessage = "Addon with that ID was not found."
 	channel = client.get_channel(715301042530549813)
 	ADDON	= '!addon'
-	HELP	= '!help'
+	HELP	= 'help'
 	ADD	= 'add'
 	REMOVE	= 'remove'
 	LIST	= 'list'
 
 	if message.author == client.user:
-			return
-	
+		return
+
 	messageContentArray = messageContentSplit(message)
 	feature = messageContentArray[0]
 
 	if feature == ADDON:
 		command = messageContentArray[1]
-
 
 		if command == LIST:
 			await channel.send("Addons currently being tracked:")
@@ -53,14 +54,15 @@ async def on_message(message):
 				entry = c.fetchone()
 
 		elif command == HELP:
-			await channel.send("List of commands:")
-			await channel.send("!addon add [id] [role]: Adds an addon with Project ID [id] to the tracker. When updates are available, it will tag @[role]. Default is 'here'")
-			await channel.send("!addon help: displays the list of commands")
-			await channel.send("!addon list: Shows all addons currently being tracked.")
-			await channel.send("!addon remove [id]: Removes an addon from the tracker with Project ID [id]")  
+			await channel.send("\
+			List of commands:\n\
+			!addon add [id] [role]: Adds an addon with Project ID [id] to the tracker. When updates are available, it will tag @[role]. Default is 'here'.\n\
+			!addon help: displays the list of commands.\n\
+			!addon list: Shows all addons currently being tracked.\n\
+			!addon remove [id]: Removes an addon from the tracker with Project ID [id]")
 
 		elif command == ADD:
-			if(!intCheck(messageContentArray[2])):
+			if(intCheck(messageContentArray[2]) is False):
 				await channel.send(failureMessage)
 				return
 			id = messageContentArray[2]
@@ -102,7 +104,7 @@ async def on_message(message):
 				await channel.send(alreadyExists)
 
 		elif command == REMOVE:
-			if(!intCheck(messageContentArray[2])):
+			if(intCheck(messageContentArray[2]) is False):
 				await channel.send(failureMessage)
 				return
 			id = messageContentArray[2]
@@ -119,13 +121,10 @@ async def on_message(message):
 				await channel.send(notFoundMessage)
 			c.close()
 			conn.close()
-			await channel.send(removeMessage)  
+			await channel.send(removeMessage)
 
 		else:
 			await channel.send(failureMessage)
-
-	else:
-		await channel.send(failureMessage)
 
 @tasks.loop(hours=2)
 async def updateAlert():
@@ -157,6 +156,8 @@ async def updateAlert():
 	conn.close()
 
 def connectDB():
+	global conn
+	global c
 	conn = sqlite3.connect('addons.db')
 	c = conn.cursor()
 
