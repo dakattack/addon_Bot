@@ -27,7 +27,7 @@ async def on_message(message):
 	channel = client.get_channel(715301042530549813)
 	ADDON	= '!addon'
 	HELP	= '!help'
-	ADD		= 'add'
+	ADD	= 'add'
 	REMOVE	= 'remove'
 	LIST	= 'list'
 
