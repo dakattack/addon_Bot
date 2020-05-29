@@ -25,14 +25,14 @@ async def on_message(message):
 	failureMessage = "Please enter a valid addon ID"
 	notFoundMessage = "Addon with that ID was not found."
 	channel = client.get_channel(715301042530549813)
-	ADDON 	= '!addon'
-	HELP 	= '!help'
-	ADD 	= 'add'
-	REMOVE 	= 'remove'
-	LIST 	= 'list'
+	ADDON	= '!addon'
+	HELP	= '!help'
+	ADD	= 'add'
+	REMOVE	= 'remove'
+	LIST	= 'list'
 
 	if message.author == client.user:
-       		return
+			return
 	
 	messageContentArray = messageContentSplit(message)
 	feature = messageContentArray[0]
@@ -42,9 +42,9 @@ async def on_message(message):
 		id = messageContentArray[2]
 
 		if intCheck(id):
-        	if command == ADD:
-        		connectDB()
-        		dbQuery = "SELECT * FROM addons WHERE id = " + str(id)
+			if command == ADD:
+				connectDB()
+				dbQuery = "SELECT * FROM addons WHERE id = " + str(id)
 				c.execute(dbQuery)
 				entry = c.fetchone()
 				if entry is None:
@@ -116,7 +116,7 @@ async def on_message(message):
 	elif feature == HELP:
 		await channel.send("List of commands:")
 		await channel.send("!addon add [id] [role]: Adds an addon with Project ID [id] to the tracker. When updates are available, it will tag @[role]. Default is 'here'")
-		await channel.send("!addon remove [id]: Removes an addon from the tracker with Project ID [id]")	
+		await channel.send("!addon remove [id]: Removes an addon from the tracker with Project ID [id]")    
 		await channel.send("!addon list: Shows all addons currently being tracked.")
 
 @tasks.loop(hours=2)
