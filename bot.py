@@ -159,7 +159,7 @@ async def on_message(message):
 					c.execute(dbQuery)
 				await channel.send(removeMessage)
 			else:
-				await channel.send(notFoundMessage)
+				await channel.send(invalidIDMessage)
 		else:
 			await channel.send(failureMessage)
 		closeDB()
