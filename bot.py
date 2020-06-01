@@ -13,24 +13,30 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 
 client = discord.Client()
 
-channel = 0
-
 @client.event
 async def on_ready():
+	global conn
+	global c
+	connectDB()
+	c.execute("CREATE TABLE IF NOT EXISTS addons(id INTEGER PRIMARY KEY, name TEXT, latestVersion INTEGER, latestDownload TEXT")
+	c.execute("CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY")
+	c.execute("CREATE TABLE IF NOT EXISTS addons_channels(addon_id INTEGER, channel_id INTEGER, role TEXT, FOREIGN KEY(addon_id) REFERENCES addons(id), FOREIGN KEY(channel_id) REFERENCES channels(id)")
+	closeDB()
 	print('Logged in as {0.user}'.format(client))
 
 @client.event
 async def on_message(message):
 	global conn
 	global c
-	failureMessage = "Please enter a valid addon ID"
-	notFoundMessage = "Addon with that ID was not found."
+	failureMessage = "Please enter a valid addon ID."
+	notFoundMessage = "Command not found."
 	channel = message.channel
-	ADDON	= '!addon'
-	HELP	= 'help'
+	channelID = message.channel.id
+	ADDON = '!addon'
+	HELP = 'help'
 	ADD	= 'add'
-	REMOVE	= 'remove'
-	LIST	= 'list'
+	REMOVE = 'remove'
+	LIST = 'list'
 
 	if message.author == client.user:
 		return
@@ -38,23 +44,24 @@ async def on_message(message):
 	messageContentArray = messageContentSplit(message)
 	feature = messageContentArray[0]
 
-	if feature == ADDON:
+	if feature == ADDON:	
+		connectDB()
 		command = messageContentArray[1]
 
 		if command == LIST:
 			addonList = "Addons currently being tracked:\n"
-			connectDB()
-			dbQuery = "SELECT * FROM addons"
+			dbQuery = "SELECT * FROM addons_channels WHERE channel_id = " + channelID
 			c.execute(dbQuery)
-			entry = c.fetchone()
-			while entry is not None:
-				addonName = str(entry[1])
-				addonID = str(entry[0])
-				addonRole = str(entry[3])
+			tracked = c.fetchall()
+			for trackedAddon in tracked:
+				addonID = str(trackedAddon[0])
+				dbQuery = "SELECT * FROM addons WHERE id = " + addonID
+				addon = c.fetchone()
+				addonName = str(addon[1])
+				addonRole = str(addon[3])
 				addonNameTrunc = (addonName[:37] + '...') if len(addonName) > 37 else addonName.ljust(40)
 				addonInfo = "\t" + addonNameTrunc + "Project ID: " + addonID + " Role: " + addonRole + "\n"
 				addonList = addonList + addonInfo
-				entry = c.fetchone()
 			await channel.send(addonList)
 
 		elif command == HELP:
@@ -70,7 +77,6 @@ async def on_message(message):
 				await channel.send(failureMessage)
 				return
 			id = messageContentArray[2]
-			connectDB()
 			dbQuery = "SELECT * FROM addons WHERE id = " + str(id)
 			c.execute(dbQuery)
 			entry = c.fetchone()
@@ -84,15 +90,18 @@ async def on_message(message):
 					latestClassic = latestClassic + 1
 				name = addonDict["name"]
 				latestVersion = addonDict["latestFiles"][latestClassic]["id"]
+				latestDownload = addonDict["latestFiles"][latestClassic]["downloadUrl"]
+				dbQuery = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ', "' + str(latestDownload) + '")'
+				c.execute(dbQuery)
+			dbQuery = "SELECT * FROM addons_channels WHERE addon_id = " + str(id) + " AND channel_id = " + str(channelID)
+			c.execute(dbQuery)
+			entry = c.fetchone()
+			if entry is None:
+				dbQuery = "INSERT INTO addons_channels VALUES(" + id + ", " + channelID + ")"
 				try:
 					roleName = messageContentArray[3]
 				except IndexError:
 					roleName = "here"
-				dbQuery = 'INSERT INTO addons VALUES(' + str(id) + ', "' + str(name) + '", ' + str(latestVersion) + ', "' + str(roleName) + '")'
-				c.execute(dbQuery)
-				conn.commit()
-				c.close()
-				conn.close()
 				roleList = message.guild.roles
 				for roleTemp in roleList:
 					if roleTemp.name == roleName:
@@ -102,33 +111,33 @@ async def on_message(message):
 						successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons for @here"
 				await channel.send(successMessage)
 			else:
-				alreadyExists = entry[1] + " is already being tracked."
-				c.close()
-				conn.close()
-				await channel.send(alreadyExists)
+				repeatMessage = "Addon is already being tracked."
+				await channel.send(repeatMessage)
 
 		elif command == REMOVE:
 			if(intCheck(messageContentArray[2]) is False):
 				await channel.send(failureMessage)
 				return
 			id = messageContentArray[2]
-			connectDB()
-			dbQuery = "SELECT * FROM addons WHERE id = " + str(id)
+			dbQuery = "SELECT * FROM addons_channels WHERE addon_id = " + str(id) " AND channel_id = " + str(channelID) 
 			c.execute(dbQuery)
 			entry = c.fetchone()
 			if entry is not None:
 				removeMessage = entry[1] + " was removed from the tracker"
-				dbQuery = "DELETE FROM addons WHERE id = " + str(id)
+				dbQuery = "DELETE FROM addons_channels WHERE addon_id = " + str(id) " AND channel_id = " + str(channelID)
 				c.execute(dbQuery)
-				conn.commit()
+				dbQuery = "SELECT * FROM addons_channels WHERE addon_id = " + str(id)
+				c.execute(dbQuery)
+				entry = c.fetchone()
+				if entry is None:
+					dbQuery = "DELETE FROM addons WHERE id = " + str(id)
+					c.execute(dbQuery)
+				await channel.send(removeMessage)
 			else:
 				await channel.send(notFoundMessage)
-			c.close()
-			conn.close()
-			await channel.send(removeMessage)
-
 		else:
 			await channel.send(failureMessage)
+		closeDB()
 
 @tasks.loop(hours=2)
 async def updateAlert():
@@ -136,11 +145,11 @@ async def updateAlert():
 	global c
 	connectDB()
 	await client.wait_until_ready()
-	channel = client.get_channel(715301042530549813)
 	c.execute("SELECT * FROM addons")
-	row = c.fetchone()
-	while row is not None:
-		apiRequest = "https://addons-ecs.forgesvc.net/api/v2/addon/" + str(row[0])
+	addons = c.fetchall()
+	for addon in addons:
+		id = str(addon[0])
+		apiRequest = "https://addons-ecs.forgesvc.net/api/v2/addon/" + id
 		with urllib.request.urlopen(apiRequest) as url:
 			jsonFile = url.read()
 			addonDict = json.loads(jsonFile)
@@ -148,22 +157,30 @@ async def updateAlert():
 		while addonDict["latestFiles"][latestClassic]["gameVersionFlavor"] != "wow_classic":
 			latestClassic = latestClassic + 1
 		if addonDict["latestFiles"][latestClassic]["id"] != row[2]:
-			dbQuery = "UPDATE addons SET latestVersion = " + str(addonDict["latestFiles"][latestClassic]["id"]) +" WHERE id = " + str(row[0])
+			latestVersion = str(addonDict["latestFiles"][latestClassic]["id"])
+			latestDownload = str(addonDict["latestFiles"][latestClassic]["latestDownload"])
+			dbQuery = "UPDATE addons SET latestVersion = " + latestVersion +", latestDownload = " + latestDownload + " WHERE id = " + id
 			c.execute(dbQuery)
-			conn.commit()
-			updateMessage = "A new version of " + addonDict["name"] + " is available! Version: " + addonDict["latestFiles"][latestClassic]["displayName"] + " Be sure to download it here before raid: " +  addonDict["latestFiles"][latestClassic]["downloadUrl"]
-			await channel.send(updateMessage)
-		row = c.fetchone()
-
-	c.close()
-	conn.close()
+			updateMessage = "A new version of " + addonDict["name"] + " is available! Version: " + latestVersion + " Be sure to download it here: " +  latestDownload
+			dbQuery = "SELECT * FROM addons_channels WHERE addon_id = " + id
+			c.execute(dbQuery)
+			channelsTracking = c.fetchall()
+			for eachChannel in channelsTracking:
+				channel = client.get_channel(eachChannel)
+				await channel.send(updateMessage)
+	closeDB()
 
 def connectDB():
 	global conn
 	global c
 	conn = sqlite3.connect('addons.db')
 	c = conn.cursor()
-
+	
+def closeDB():
+	conn.commit()
+	c.close()
+	conn.close()
+	
 def messageContentSplit(message):
 	messageContent = message.content
 	messageContentArray = messageContent.split()
