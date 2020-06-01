@@ -18,9 +18,9 @@ async def on_ready():
 	global conn
 	global c
 	connectDB()
-	c.execute("CREATE TABLE IF NOT EXISTS addons(id INTEGER PRIMARY KEY, name TEXT, latestVersion INTEGER, latestDownload TEXT")
-	c.execute("CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY")
-	c.execute("CREATE TABLE IF NOT EXISTS addons_channels(addon_id INTEGER, channel_id INTEGER, role TEXT, FOREIGN KEY(addon_id) REFERENCES addons(id), FOREIGN KEY(channel_id) REFERENCES channels(id)")
+	c.execute("CREATE TABLE IF NOT EXISTS addons(id INTEGER PRIMARY KEY, name TEXT, latestVersion INTEGER, latestDownload TEXT)")
+	c.execute("CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY)")
+	c.execute("CREATE TABLE IF NOT EXISTS addons_channels(addon_id INTEGER, channel_id INTEGER, role TEXT, FOREIGN KEY(addon_id) REFERENCES addons(id), FOREIGN KEY(channel_id) REFERENCES channels(id))")
 	closeDB()
 	print('Logged in as {0.user}'.format(client))
 
@@ -44,21 +44,28 @@ async def on_message(message):
 	messageContentArray = messageContentSplit(message)
 	feature = messageContentArray[0]
 
-	if feature == ADDON:	
+	if feature == ADDON:
 		connectDB()
 		command = messageContentArray[1]
+		dbQuery = "SELECT * FROM channels WHERE id = " + str(channelID)
+		c.execute(dbQuery)
+		entry = c.fetchone()
+		if entry is None:
+			dbQuery = "INSERT INTO channels VALUES(" + str(channelID) + ")"
+		c.execute(dbQuery)
 
 		if command == LIST:
 			addonList = "Addons currently being tracked:\n"
-			dbQuery = "SELECT * FROM addons_channels WHERE channel_id = " + channelID
+			dbQuery = "SELECT * FROM addons_channels WHERE channel_id = " + str(channelID)
 			c.execute(dbQuery)
 			tracked = c.fetchall()
 			for trackedAddon in tracked:
 				addonID = str(trackedAddon[0])
-				dbQuery = "SELECT * FROM addons WHERE id = " + addonID
+				addonRole = str(trackedAddon[2])
+				dbQuery = "SELECT * FROM addons WHERE id = " + str(addonID)
+				c.execute(dbQuery)
 				addon = c.fetchone()
 				addonName = str(addon[1])
-				addonRole = str(addon[3])
 				addonNameTrunc = (addonName[:37] + '...') if len(addonName) > 37 else addonName.ljust(40)
 				addonInfo = "\t" + addonNameTrunc + "Project ID: " + addonID + " Role: " + addonRole + "\n"
 				addonList = addonList + addonInfo
@@ -97,18 +104,26 @@ async def on_message(message):
 			c.execute(dbQuery)
 			entry = c.fetchone()
 			if entry is None:
-				dbQuery = "INSERT INTO addons_channels VALUES(" + id + ", " + channelID + ")"
+				dbQuery = "SELECT * FROM addons WHERE id = " + str(id)
+				c.execute(dbQuery)
+				addon = c.fetchone()
+				name = addon[1]
 				try:
 					roleName = messageContentArray[3]
 				except IndexError:
 					roleName = "here"
 				roleList = message.guild.roles
+				roleFound = False
 				for roleTemp in roleList:
 					if roleTemp.name == roleName:
 						role = roleTemp
-						successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons for " + role.mention
-					else:
-						successMessage = "Successfully added " + addonDict["name"] + " to the list of tracked addons for @here"
+						dbQuery = 'INSERT INTO addons_channels VALUES(' + str(id) + ', ' + str(channelID) + ', "' + roleName + '")'
+						roleFound = True
+						successMessage = "Successfully added " + name + " to the list of tracked addons for " + role.mention
+				if(roleFound is False):
+					dbQuery = 'INSERT INTO addons_channels VALUES(' + str(id) + ', ' + str(channelID) + ', "here")'
+					successMessage = "Successfully added " + name + " to the list of tracked addons for @here"
+				c.execute(dbQuery)
 				await channel.send(successMessage)
 			else:
 				repeatMessage = "Addon is already being tracked."
@@ -119,12 +134,16 @@ async def on_message(message):
 				await channel.send(failureMessage)
 				return
 			id = messageContentArray[2]
-			dbQuery = "SELECT * FROM addons_channels WHERE addon_id = " + str(id) " AND channel_id = " + str(channelID) 
+			dbQuery = "SELECT * FROM addons_channels WHERE addon_id = " + str(id) + " AND channel_id = " + str(channelID)
 			c.execute(dbQuery)
 			entry = c.fetchone()
 			if entry is not None:
-				removeMessage = entry[1] + " was removed from the tracker"
-				dbQuery = "DELETE FROM addons_channels WHERE addon_id = " + str(id) " AND channel_id = " + str(channelID)
+				dbQuery = "SELECT * FROM addons WHERE id = " + str(id)
+				c.execute(dbQuery)
+				addon = c.fetchone()
+				addonName = str(addon[1])
+				removeMessage = addonName + " was removed from the tracker."
+				dbQuery = "DELETE FROM addons_channels WHERE addon_id = " + str(id) + " AND channel_id = " + str(channelID)
 				c.execute(dbQuery)
 				dbQuery = "SELECT * FROM addons_channels WHERE addon_id = " + str(id)
 				c.execute(dbQuery)
@@ -175,12 +194,12 @@ def connectDB():
 	global c
 	conn = sqlite3.connect('addons.db')
 	c = conn.cursor()
-	
+
 def closeDB():
 	conn.commit()
 	c.close()
 	conn.close()
-	
+
 def messageContentSplit(message):
 	messageContent = message.content
 	messageContentArray = messageContent.split()
