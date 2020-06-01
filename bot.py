@@ -39,6 +39,7 @@ async def on_message(message):
 	ADD	= 'add'
 	REMOVE = 'remove'
 	LIST = 'list'
+	POOP = 'poop'
 
 	if message.author == client.user:
 		return
@@ -80,6 +81,9 @@ async def on_message(message):
 			!addon help: displays the list of commands.\n\
 			!addon list: Shows all addons currently being tracked.\n\
 			!addon remove [id]: Removes an addon from the tracker with Project ID [id]")
+
+		elif command == POOP:
+			await channel.send("Work is da poop, no more!")
 
 		elif command == ADD:
 			if(intCheck(messageContentArray[2]) is False):
@@ -155,7 +159,7 @@ async def on_message(message):
 					c.execute(dbQuery)
 				await channel.send(removeMessage)
 			else:
-				await channel.send(notFoundMessage)
+				await channel.send(invalidIDMessage)
 		else:
 			await channel.send(failureMessage)
 		closeDB()
