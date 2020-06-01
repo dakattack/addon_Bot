@@ -28,8 +28,10 @@ async def on_ready():
 async def on_message(message):
 	global conn
 	global c
-	failureMessage = "Please enter a valid addon ID."
+	failureMessage = "Please enter a valid command."
 	notFoundMessage = "Command not found."
+	invalidIDMessage = "Please enter a valid addon ID."
+
 	channel = message.channel
 	channelID = message.channel.id
 	ADDON = '!addon'
@@ -81,7 +83,7 @@ async def on_message(message):
 
 		elif command == ADD:
 			if(intCheck(messageContentArray[2]) is False):
-				await channel.send(failureMessage)
+				await channel.send(invalidIDMessage)
 				return
 			id = messageContentArray[2]
 			dbQuery = "SELECT * FROM addons WHERE id = " + str(id)
@@ -131,7 +133,7 @@ async def on_message(message):
 
 		elif command == REMOVE:
 			if(intCheck(messageContentArray[2]) is False):
-				await channel.send(failureMessage)
+				await channel.send(invalidIDMessage)
 				return
 			id = messageContentArray[2]
 			dbQuery = "SELECT * FROM addons_channels WHERE addon_id = " + str(id) + " AND channel_id = " + str(channelID)
