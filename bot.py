@@ -21,12 +21,11 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-	global channel
 	global conn
 	global c
 	failureMessage = "Please enter a valid addon ID"
 	notFoundMessage = "Addon with that ID was not found."
-	channel = client.get_channel(715301042530549813)
+	channel = message.channel
 	ADDON	= '!addon'
 	HELP	= 'help'
 	ADD	= 'add'
@@ -133,14 +132,13 @@ async def on_message(message):
 
 @tasks.loop(hours=2)
 async def updateAlert():
+	global conn
+	global c
+	connectDB()
 	await client.wait_until_ready()
-	global channel
 	channel = client.get_channel(715301042530549813)
-	conn = sqlite3.connect('addons.db')
-	c = conn.cursor()
 	c.execute("SELECT * FROM addons")
 	row = c.fetchone()
-
 	while row is not None:
 		apiRequest = "https://addons-ecs.forgesvc.net/api/v2/addon/" + str(row[0])
 		with urllib.request.urlopen(apiRequest) as url:
