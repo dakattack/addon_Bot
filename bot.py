@@ -58,7 +58,7 @@ async def on_message(message):
 		c.execute(dbQuery)
 
 		if command == LIST:
-			addonList = "Addons currently being tracked:\n"
+			addonList = "```Addons currently being tracked:\n"
 			dbQuery = "SELECT * FROM addons_channels WHERE channel_id = " + str(channelID)
 			c.execute(dbQuery)
 			tracked = c.fetchall()
@@ -70,8 +70,10 @@ async def on_message(message):
 				addon = c.fetchone()
 				addonName = str(addon[1])
 				addonNameTrunc = (addonName[:37] + '...') if len(addonName) > 37 else addonName.ljust(40)
-				addonInfo = "\t" + addonNameTrunc + "Project ID: " + addonID + " Role: " + addonRole + "\n"
+				addonIDTrunc = (addonID[:10] + '...') if len(addonID) > 10 else addonID.ljust(13)
+				addonInfo = "\t" + addonNameTrunc + "Project ID: " + addonIDTrunc + " Role: " + addonRole + "\n"
 				addonList = addonList + addonInfo
+			addonList = addonList + "```"
 			await channel.send(addonList)
 
 		elif command == HELP:
@@ -117,18 +119,23 @@ async def on_message(message):
 				try:
 					roleName = messageContentArray[3]
 				except IndexError:
-					roleName = "here"
+					roleName = "NOROLE"
 				roleList = message.guild.roles
 				roleFound = False
-				for roleTemp in roleList:
-					if roleTemp.name == roleName:
-						role = roleTemp
-						dbQuery = 'INSERT INTO addons_channels VALUES(' + str(id) + ', ' + str(channelID) + ', "' + roleName + '")'
-						roleFound = True
-						successMessage = "Successfully added " + name + " to the list of tracked addons for " + role.mention
-				if(roleFound is False):
+				if roleName != "here" and roleName != "NOROLE":
+					for roleTemp in roleList:
+						if roleTemp.name == roleName:
+							role = roleTemp
+							dbQuery = 'INSERT INTO addons_channels VALUES(' + str(id) + ', ' + str(channelID) + ', "' + roleName + '")'
+							roleFound = True
+							successMessage = "Successfully added " + name + " to the list of tracked addons for " + role.mention
+				if roleName == "here":
 					dbQuery = 'INSERT INTO addons_channels VALUES(' + str(id) + ', ' + str(channelID) + ', "here")'
+					roleFound = True
 					successMessage = "Successfully added " + name + " to the list of tracked addons for @here"
+				if(roleFound is False):
+					dbQuery = 'INSERT INTO addons_channels VALUES(' + str(id) + ', ' + str(channelID) + ', "NOROLE")'
+					successMessage = "Successfully added " + name + " to the list of tracked addons."
 				c.execute(dbQuery)
 				await channel.send(successMessage)
 			else:
@@ -170,9 +177,11 @@ async def updateAlert():
 	global c
 	connectDB()
 	await client.wait_until_ready()
-	c.execute("SELECT * FROM addons")
+	dbQuery = "SELECT * FROM addons"
+	c.execute(dbQuery)
 	addons = c.fetchall()
 	for addon in addons:
+		print("Checking for updates...")
 		id = str(addon[0])
 		apiRequest = "https://addons-ecs.forgesvc.net/api/v2/addon/" + id
 		with urllib.request.urlopen(apiRequest) as url:
@@ -181,18 +190,25 @@ async def updateAlert():
 		latestClassic = 0
 		while addonDict["latestFiles"][latestClassic]["gameVersionFlavor"] != "wow_classic":
 			latestClassic = latestClassic + 1
-		if addonDict["latestFiles"][latestClassic]["id"] != row[2]:
+		if addonDict["latestFiles"][latestClassic]["id"] != addon[2]:
 			latestVersion = str(addonDict["latestFiles"][latestClassic]["id"])
-			latestDownload = str(addonDict["latestFiles"][latestClassic]["latestDownload"])
-			dbQuery = "UPDATE addons SET latestVersion = " + latestVersion +", latestDownload = " + latestDownload + " WHERE id = " + id
+			latestDownload = str(addonDict["latestFiles"][latestClassic]["downloadUrl"])
+			dbQuery = 'UPDATE addons SET latestVersion = ' + latestVersion +', latestDownload = "' + latestDownload + '" WHERE id = ' + id
 			c.execute(dbQuery)
+			conn.commit()
 			updateMessage = "A new version of " + addonDict["name"] + " is available! Version: " + latestVersion + " Be sure to download it here: " +  latestDownload
 			dbQuery = "SELECT * FROM addons_channels WHERE addon_id = " + id
 			c.execute(dbQuery)
 			channelsTracking = c.fetchall()
 			for eachChannel in channelsTracking:
-				channel = client.get_channel(eachChannel)
-				await channel.send(updateMessage)
+				channel = client.get_channel(eachChannel[1])
+				role = eachChannel[2]
+				if role != "NOROLE":
+					await channel.send("@" + role + " " + updateMessage)
+				elif role == "here":
+					await channel.send("@here " + updateMessage)
+				else:
+					await channel.send(updateMessage)
 	closeDB()
 
 def connectDB():
